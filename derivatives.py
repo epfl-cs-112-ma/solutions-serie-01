@@ -27,28 +27,31 @@ def tree_to_str(tree: Tree) -> str:
 
 def derivative(expr: Tree, x: str) -> Tree:
     """Computes the formal derivative of the given expression."""
-    if expr.left is None or expr.right is None:
-        if expr.value == x:
+    def d(f: Tree) -> Tree:
+        return derivative(f, x)
+
+    match expr:
+        case Tree(v, None, None) if v == x:
             return leaf('1')
-        else:
+        case Tree(_, None, None):
             return leaf('0')
-    else:
-        f = expr.left
-        g = expr.right
-        df = derivative(f, x)
-        dg = derivative(g, x)
-        match expr.value:
-            case '+':
-                return tree('+', df, dg)
-            case '-':
-                return tree('-', df, dg)
-            case '*':
-                return tree('+', tree('*', df, g), tree('*', f, dg))
-            case '/':
-                return tree('/', tree('-', tree('*', df, g), tree('*', f, dg)), tree('*', g, g))
-            case '^':
-                # We assume here that g = a independent of x, as per the statement
-                a = g
-                return tree('*', tree('*', a, df), tree('^', f, tree('-', a, leaf('1'))))
-            case _:
-                raise ValueError(f"Unknown operator {expr.value}")
+
+        case Tree('+', Tree() as f, Tree() as g):
+            return tree('+', d(f), d(g))
+
+        case Tree('-', Tree() as f, Tree() as g):
+            return tree('-', d(f), d(g))
+
+        case Tree('*', Tree() as f, Tree() as g):
+            return tree('+', tree('*', d(f), g), tree('*', f, d(g)))
+
+        case Tree('/', Tree() as f, Tree() as g):
+            return tree('/', tree('-', tree('*', d(f), g), tree('*', f, d(g))), tree('*', g, g))
+
+        case Tree('^', Tree() as f, Tree() as g):
+            # We assume here that g = a independent of x, as per the statement
+            a = g
+            return tree('*', tree('*', a, d(f)), tree('^', f, tree('-', a, leaf('1'))))
+
+        case _:
+            raise ValueError(f"Invalid tree {expr}")
