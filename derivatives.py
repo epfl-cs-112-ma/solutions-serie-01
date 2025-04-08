@@ -1,29 +1,33 @@
 from dataclasses import dataclass
 
-type TreeOpt = Tree | None
-"""Optional sub-tree"""
+type Tree = Leaf | Branch
+"""Binary tree, with a new representation."""
 
 @dataclass(frozen=True)
-class Tree:
-    """Binary tree, with the representation in the statement."""
+class Leaf:
     value: str
-    left: TreeOpt
-    right: TreeOpt
 
-def tree(value: str, left: TreeOpt, right: TreeOpt) -> Tree:
-    # Yes, that's all there is to it
-    return Tree(value, left, right)
+@dataclass(frozen=True)
+class Branch:
+    """Binary operator."""
+    operator: str
+    left: Tree
+    right: Tree
+
+def tree(value: str, left: Tree, right: Tree) -> Tree:
+    return Branch(value, left, right)
 
 def leaf(value: str) -> Tree:
-    return Tree(value, None, None)
+    return Leaf(value)
 
 def tree_to_str(tree: Tree) -> str:
-    if tree.left is None or tree.right is None:
-        return f"({tree.value})"
-    else:
-        left_str = tree_to_str(tree.left)
-        right_str = tree_to_str(tree.right)
-        return f"({left_str} {tree.value} {right_str})"
+    match tree:
+        case Leaf(value):
+            return f"({value})"
+        case Branch(op, left, right):
+            left_str = tree_to_str(left)
+            right_str = tree_to_str(right)
+            return f"({left_str} {op} {right_str})"
 
 def derivative(expr: Tree, x: str) -> Tree:
     """Computes the formal derivative of the given expression."""
@@ -31,27 +35,27 @@ def derivative(expr: Tree, x: str) -> Tree:
         return derivative(f, x)
 
     match expr:
-        case Tree(v, None, None) if v == x:
+        case Leaf(v) if v == x:
             return leaf('1')
-        case Tree(_, None, None):
+        case Leaf(_):
             return leaf('0')
 
-        case Tree('+', Tree() as f, Tree() as g):
+        case Branch('+', f, g):
             return tree('+', d(f), d(g))
 
-        case Tree('-', Tree() as f, Tree() as g):
+        case Branch('-', f, g):
             return tree('-', d(f), d(g))
 
-        case Tree('*', Tree() as f, Tree() as g):
+        case Branch('*', f, g):
             return tree('+', tree('*', d(f), g), tree('*', f, d(g)))
 
-        case Tree('/', Tree() as f, Tree() as g):
+        case Branch('/', f, g):
             return tree('/', tree('-', tree('*', d(f), g), tree('*', f, d(g))), tree('*', g, g))
 
-        case Tree('^', Tree() as f, Tree() as g):
+        case Branch('^', f, g):
             # We assume here that g = a independent of x, as per the statement
             a = g
             return tree('*', tree('*', a, d(f)), tree('^', f, tree('-', a, leaf('1'))))
 
-        case _:
-            raise ValueError(f"Invalid tree {expr}")
+        case Branch(op, _, _):
+            raise ValueError(f"Invalid operator {op} of tree {expr}")
